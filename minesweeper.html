@@ -21,11 +21,13 @@
     }
     h1 { margin: 0 0 10px; font-size: clamp(22px, 6vw, 34px); }
 
-    /* 위쪽 정보 줄 (남은 지뢰, 다시 시작, 시간) */
+    /* 위쪽 정보 줄 (남은 지뢰, 버튼들, 시간) */
     #bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
       width: 100%;
       box-sizing: border-box;
       padding: 6px 10px;
@@ -35,31 +37,43 @@
       font-size: clamp(15px, 3.5vw, 20px);
       font-weight: bold;
     }
-    #restartBtn {
+    .tools { display: flex; gap: 6px; }
+    #bar button {
       font-size: clamp(14px, 3.5vw, 18px);
-      padding: 6px 16px;
+      min-width: 40px;
+      height: 38px;          /* 손가락으로 누르기 좋은 크기 */
+      padding: 0 12px;
       border: none;
       border-radius: 6px;
-      background: #ffd166;
-      color: #222;
+      background: #34508f;
+      color: #fff;
       font-weight: bold;
       cursor: pointer;
+      touch-action: manipulation;
     }
-    #restartBtn:hover { background: #ffe29a; }
+    #bar button:hover { filter: brightness(1.15); }
+    #modeBtn.flagMode { background: #e53935; }
+    #restartBtn { background: #ffd166 !important; color: #222 !important; }
 
-    /* 게임 판: 화면 크기에 맞게 자동으로 줄어듦 (가로:세로 = 4:3) */
     #wrap {
-      position: relative;
-      width: min(960px, 95vw, calc((100vh - 230px) * 4 / 3));
-      min-width: 280px;
+      width: min(960px, 96vw);
+    }
+    /* 게임 판을 담는 창: 판이 크면 손가락으로 끌어서 움직일 수 있음 */
+    #boardBox { position: relative; }
+    #viewport {
+      overflow: auto;
+      max-height: calc(100vh - 190px);
+      max-height: calc(100dvh - 190px);   /* 휴대폰 주소창 높이까지 생각한 화면 높이 */
+      border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      background: #0e1830;
+      overscroll-behavior: contain;       /* 판을 끌 때 페이지 전체가 같이 움직이지 않게 */
     }
     canvas {
       display: block;
-      width: 100%;
-      border-radius: 6px;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      margin: 0 auto;
       cursor: pointer;
-      touch-action: manipulation;   /* 두 번 톡 쳐도 화면이 확대되지 않게 */
+      touch-action: pan-x pan-y;   /* 손가락으로 끌기는 OK, 두 번 톡 확대는 막기 */
     }
 
     /* 게임 오버 / 클리어 화면 */
@@ -91,7 +105,15 @@
       font-weight: bold;
       cursor: pointer;
     }
-    p { color: #a9b8d8; text-align: center; line-height: 1.6; font-size: clamp(12px, 3vw, 15px); }
+    p { color: #a9b8d8; text-align: center; line-height: 1.6; font-size: clamp(12px, 3vw, 15px); margin: 10px 0 0; }
+    .phone { display: none; }
+    /* 휴대폰처럼 작은 화면 */
+    @media (max-width: 700px), (pointer: coarse) {
+      body { justify-content: flex-start; padding-top: 8px; }
+      h1 { margin-bottom: 6px; }
+      .pc { display: none; }
+      .phone { display: inline; }
+    }
   </style>
 </head>
 <body>
@@ -100,11 +122,18 @@
   <div id="wrap">
     <div id="bar">
       <span id="mineCount">💣 0</span>
-      <button id="restartBtn">다시 시작</button>
+      <div class="tools">
+        <button id="modeBtn" title="누르면 풀 없애기 / 깃발 꽂기가 바뀌어요">⛏️</button>
+        <button id="zoomOutBtn" title="작게 보기">−</button>
+        <button id="zoomInBtn" title="크게 보기">+</button>
+        <button id="restartBtn">다시 시작</button>
+      </div>
       <span id="timer">⏱️ 0</span>
     </div>
-    <div style="position: relative;">
-      <canvas id="board"></canvas>
+    <div id="boardBox">
+      <div id="viewport">
+        <canvas id="board"></canvas>
+      </div>
       <div id="overlay" class="hidden">
         <div id="message"></div>
         <div id="detail"></div>
@@ -114,8 +143,9 @@
   </div>
 
   <p>
-    풀블록을 <b>클릭</b>하면 없어져요<br>
-    <b>오른쪽 클릭</b> 또는 <b>길게 누르기</b>: 깃발 꽂기 🚩<br>
+    <span class="pc">풀블록을 <b>클릭</b>하면 없어져요 · <b>오른쪽 클릭</b>: 깃발 🚩<br></span>
+    <span class="phone"><b>톡</b>: 풀 없애기 · <b>길게 누르기</b>: 깃발 🚩 · <b>끌기</b>: 판 움직이기<br></span>
+    ⛏️/🚩 버튼: 누를 때 할 일 바꾸기 · −/+ 버튼: 작게/크게 보기<br>
     땅에 적힌 숫자 = 주변 8칸에 있는 지뢰 개수
   </p>
 
@@ -133,12 +163,80 @@
     const overlay = document.getElementById("overlay");
     const message = document.getElementById("message");
     const detail = document.getElementById("detail");
+    const wrap = document.getElementById("wrap");
+    const viewport = document.getElementById("viewport");
+    const modeBtn = document.getElementById("modeBtn");
 
-    // 선명하게 보이도록 화면 밀도에 맞춰 크게 그림
+    // ===== 판 크기 (확대/축소) =====
     const DPR = window.devicePixelRatio || 1;
-    canvas.width = COLS * CELL * DPR;
-    canvas.height = ROWS * CELL * DPR;
-    ctx.scale(DPR, DPR);
+    const TOUCH_SIZE = 30;    // 휴대폰에서 손가락으로 누르기 좋은 칸 크기
+    const MAX_SIZE = 48;      // 가장 크게 볼 때 칸 크기
+    let cellPx = CELL;        // 지금 화면에 보이는 칸 크기
+    let userZoomed = false;   // 직접 확대/축소 버튼을 눌렀나
+
+    // 판 전체가 화면에 딱 들어가는 칸 크기
+    function fitSize() {
+      const byWidth = wrap.clientWidth / COLS;
+      const byHeight = (window.innerHeight - 190) / ROWS;
+      return Math.max(8, Math.floor(Math.min(byWidth, byHeight) * 10) / 10);
+    }
+
+    // 처음 크기: 컴퓨터는 판 전체가 보이게, 휴대폰은 누르기 좋은 크기로 (대신 끌어서 움직임)
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;   // 손가락으로 쓰는 기기인가
+    function startSize() {
+      const fit = fitSize();
+      return isTouch ? Math.max(fit, TOUCH_SIZE) : fit;
+    }
+
+    // 칸 크기 바꾸기 (보고 있던 가운데 자리는 그대로 유지)
+    function setCellSize(size) {
+      size = Math.max(fitSize(), Math.min(MAX_SIZE, size));
+      const oldW = canvas.offsetWidth || 1;
+      const oldH = canvas.offsetHeight || 1;
+      const centerX = (viewport.scrollLeft + viewport.clientWidth / 2) / oldW;
+      const centerY = (viewport.scrollTop + viewport.clientHeight / 2) / oldH;
+
+      cellPx = size;
+      const w = COLS * cellPx;
+      const h = ROWS * cellPx;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      // 선명하게 보이도록 화면 밀도에 맞춰 크게 그림 (휴대폰이 감당할 수 있는 크기까지만)
+      const sharp = Math.min(DPR, Math.sqrt(12000000 / (w * h)));
+      canvas.width = Math.round(w * sharp);
+      canvas.height = Math.round(h * sharp);
+      const scale = canvas.width / (COLS * CELL);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);   // 그림은 항상 CELL 기준으로 그리면 알아서 늘어남
+
+      draw();
+      viewport.scrollLeft = centerX * w - viewport.clientWidth / 2;
+      viewport.scrollTop = centerY * h - viewport.clientHeight / 2;
+    }
+
+    document.getElementById("zoomInBtn").addEventListener("click", () => {
+      userZoomed = true;
+      setCellSize(cellPx + 6);
+    });
+    document.getElementById("zoomOutBtn").addEventListener("click", () => {
+      userZoomed = true;
+      setCellSize(cellPx - 6);
+    });
+    // 화면 크기가 바뀌면 (휴대폰 돌리기 등) 다시 맞추기
+    // (휴대폰은 스크롤할 때 주소창이 숨으면서 높이만 바뀌기도 해서, 가로가 바뀔 때만)
+    let lastWidth = window.innerWidth;
+    window.addEventListener("resize", () => {
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      setCellSize(userZoomed ? cellPx : startSize());
+    });
+
+    // ===== 누를 때 할 일: 풀 없애기 ⛏️ / 깃발 🚩 =====
+    let flagMode = false;
+    modeBtn.addEventListener("click", () => {
+      flagMode = !flagMode;
+      modeBtn.textContent = flagMode ? "🚩" : "⛏️";
+      modeBtn.classList.toggle("flagMode", flagMode);
+    });
 
     // ===== 색깔 =====
     const NUMBER_COLORS = ["", "#1565c0", "#2e7d32", "#c62828", "#4a148c", "#8d2a00", "#00838f", "#212121", "#616161"];
@@ -441,16 +539,24 @@
       clearTimeout(pressTimer);
       const c = cellFromEvent(e);
       // 짧게 눌렀고, 누른 칸에서 손을 뗐을 때만 "클릭"
-      if (!longPressed && c && c === pressCell) hit(c);
+      if (!longPressed && c && c === pressCell) {
+        if (flagMode) toggleFlag(c);
+        else hit(c);
+      }
       pressCell = null;
     });
 
-    canvas.addEventListener("pointercancel", () => clearTimeout(pressTimer));
+    // 손가락으로 판을 끌기 시작하면 누르기는 취소
+    canvas.addEventListener("pointercancel", () => {
+      clearTimeout(pressTimer);
+      pressCell = null;
+    });
 
     canvas.addEventListener("pointermove", (e) => {
       const c = cellFromEvent(e);
       if (c !== pressCell) clearTimeout(pressTimer);   // 움직이면 길게 누르기 취소
-      if (c !== hover) { hover = c; draw(); }
+      // 테두리 표시는 마우스일 때만
+      if (e.pointerType === "mouse" && c !== hover) { hover = c; draw(); }
     });
     canvas.addEventListener("pointerleave", () => {
       clearTimeout(pressTimer);
@@ -465,6 +571,7 @@
     document.getElementById("overlayBtn").addEventListener("click", newGame);
 
     newGame();
+    setCellSize(startSize());
   </script>
 </body>
 </html>
