@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>네온 벽돌깨기</title>
+  <title>미니 게임 모음</title>
   <style>
     body {
       margin: 0;
@@ -12,880 +12,169 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      /* 어두운 우주 느낌 배경 */
-      background: radial-gradient(ellipse at top, #1a1240 0%, #07061a 60%, #020108 100%);
+      padding: 24px 16px;
+      box-sizing: border-box;
+      background: radial-gradient(ellipse at top, #1d1a4a 0%, #0b0a24 60%, #05040f 100%);
       color: #fff;
       font-family: "Malgun Gothic", sans-serif;
     }
     h1 {
-      margin: 0 0 14px;
-      font-size: clamp(24px, 7vw, 40px);
-      letter-spacing: 4px;
-      color: #e8fbff;
-      /* 네온 빛 */
-      text-shadow: 0 0 6px #01cdfe, 0 0 16px #01cdfe, 0 0 32px #ff2a6d;
+      margin: 0 0 6px;
+      font-size: clamp(28px, 8vw, 44px);
+      text-align: center;
     }
-    /* 게임 화면 크기: 화면 크기에 맞게 자동으로 줄어듦 (가로:세로 = 4:3 유지) */
-    #wrap {
-      position: relative;
-      width: min(640px, 95vw, calc((100vh - 150px) * 4 / 3));
-      min-width: 280px;
+    .sub {
+      margin: 0 0 28px;
+      color: #a9b3d6;
+      font-size: clamp(14px, 3.8vw, 18px);
     }
-    canvas {
-      display: block;
+
+    /* 게임 카드 두 개 (휴대폰에서는 위아래로) */
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
       width: 100%;
-      touch-action: none;   /* 손가락으로 끌 때 화면이 같이 움직이지 않게 */
-      border: 2px solid #01cdfe;
-      border-radius: 10px;
-      box-shadow: 0 0 12px #01cdfe, 0 0 40px rgba(1, 205, 254, 0.35);
+      max-width: 760px;
     }
-    /* 게임 위에 겹쳐서 보이는 화면 (시작, 게임 오버) */
-    #overlay {
-      position: absolute;
-      inset: 0;
+    .card {
+      flex: 1 1 300px;
+      max-width: 360px;
       display: flex;
       flex-direction: column;
+      border-radius: 16px;
+      overflow: hidden;
+      text-decoration: none;
+      color: #fff;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .card:hover { transform: translateY(-6px); }
+
+    /* 그림 영역 */
+    .preview {
+      height: 170px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(4, 2, 20, 0.6);
-      border-radius: 10px;
-      overflow-y: auto;
-      padding: 8px;
-      box-sizing: border-box;
     }
-    .hidden { display: none !important; }
-    #mainView {
+    .info { padding: 16px 18px 20px; }
+    .info h2 { margin: 0 0 6px; font-size: 24px; }
+    .info p { margin: 0 0 12px; font-size: 15px; line-height: 1.5; }
+    .record { font-size: 14px; margin-bottom: 14px; min-height: 1em; }
+    .play {
+      display: inline-block;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 17px;
+    }
+
+    /* --- 벽돌깨기 카드: 네온 --- */
+    .breakout {
+      background: #0b0624;
+      border: 2px solid #01cdfe;
+      box-shadow: 0 0 14px rgba(1, 205, 254, 0.5);
+    }
+    .breakout:hover { box-shadow: 0 0 28px rgba(1, 205, 254, 0.8); }
+    .breakout .preview { flex-direction: column; gap: 22px; }
+    .bricks { display: grid; grid-template-columns: repeat(6, 32px); gap: 5px; }
+    .bricks span { height: 11px; border-radius: 3px; border: 2px solid; }
+    .ball { width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px #01cdfe; }
+    .paddle { width: 70px; height: 10px; border-radius: 5px; background: #01cdfe; box-shadow: 0 0 12px #01cdfe; }
+    .breakout .info p { color: #9aa3c7; }
+    .breakout .record { color: #f9f871; }
+    .breakout .play { border: 2px solid #05ffa1; color: #05ffa1; box-shadow: 0 0 8px #05ffa1; }
+
+    /* --- 지뢰찾기 카드: 섬 --- */
+    .mines {
+      background: #1f3060;
+      border: 2px solid #ffd166;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    }
+    .mines:hover { box-shadow: 0 10px 28px rgba(255, 209, 102, 0.35); }
+    .mines .preview { background: #14213d; }
+    .tiles { display: grid; grid-template-columns: repeat(7, 26px); gap: 2px; }
+    .tiles span {
+      height: 26px;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: clamp(8px, 2.5vw, 18px);
-    }
-    #message {
-      font-size: clamp(30px, 9vw, 60px);
+      justify-content: center;
       font-weight: bold;
-      text-align: center;
+      font-size: 14px;
+      border-radius: 2px;
     }
-    #result {
-      text-align: center;
-      font-size: clamp(14px, 3.5vw, 20px);
-      line-height: 1.6;
-      color: #e8fbff;
-    }
-    #result .best { color: #f9f871; text-shadow: 0 0 8px #f9f871; }
-    #result .newBest { color: #05ffa1; text-shadow: 0 0 8px #05ffa1; font-weight: bold; }
-    #nameForm { display: flex; gap: 6px; }
-    #nameInput {
-      width: 150px;
-      font-size: 16px;   /* 16px보다 작으면 아이폰이 화면을 확대해 버림 */
-      padding: 6px 10px;
-      border: 1px solid #01cdfe;
-      border-radius: 6px;
-      background: rgba(1, 205, 254, 0.08);
-      color: #fff;
-      outline: none;
-      box-shadow: 0 0 6px rgba(1, 205, 254, 0.6);
-    }
-    .btnRow { display: flex; gap: 10px; align-items: center; }
-    .smallBtn {
-      font-size: 16px;
-      padding: 7px 14px;
-      border: 1px solid #01cdfe;
-      border-radius: 6px;
-      background: rgba(1, 205, 254, 0.12);
-      color: #e8fbff;
-      cursor: pointer;
-      box-shadow: 0 0 6px #01cdfe;
-      touch-action: manipulation;
-    }
-    .smallBtn:hover { background: rgba(1, 205, 254, 0.3); }
-    /* 순위표 */
-    #rankPanel {
-      width: min(380px, 90%);
-      text-align: center;
-    }
-    #rankPanel h2 {
-      margin: 0 0 8px;
-      font-size: clamp(20px, 5vw, 28px);
-      color: #f9f871;
-      text-shadow: 0 0 10px #f9f871;
-    }
-    #rankList {
-      list-style: none;
-      margin: 0 0 12px;
-      padding: 0;
-      font-size: clamp(13px, 3.4vw, 17px);
-    }
-    #rankList li {
-      display: flex;
-      gap: 10px;
-      padding: 4px 10px;
-      border-bottom: 1px solid rgba(1, 205, 254, 0.2);
-    }
-    #rankList li.me {
-      background: rgba(5, 255, 161, 0.15);
-      color: #05ffa1;
-      text-shadow: 0 0 6px #05ffa1;
-    }
-    #rankList .no { width: 34px; text-align: left; color: #01cdfe; }
-    #rankList .name { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #rankList .lv { width: 44px; color: #9aa3c7; }
-    #rankList .sc { width: 64px; text-align: right; font-weight: bold; }
-    #startBtn {
-      font-size: clamp(18px, 4.5vw, 24px);
-      padding: 10px 30px;
-      touch-action: manipulation;
-      border: 2px solid #05ffa1;
-      border-radius: 10px;
-      background: transparent;
-      color: #05ffa1;
-      font-weight: bold;
-      cursor: pointer;
-      text-shadow: 0 0 8px #05ffa1;
-      box-shadow: 0 0 10px #05ffa1, inset 0 0 10px rgba(5, 255, 161, 0.4);
-      transition: background 0.2s, color 0.2s;
-    }
-    #startBtn:hover { background: #05ffa1; color: #07061a; text-shadow: none; }
-    /* 소리 켜기/끄기 버튼 (게임 화면 오른쪽 위 구석) */
-    #soundBtn {
-      position: absolute;
-      top: 6px;
-      right: 8px;
-      z-index: 2;
-      width: 34px;
-      height: 30px;
-      font-size: 16px;
-      border: 1px solid #01cdfe;
-      border-radius: 6px;
-      background: rgba(1, 205, 254, 0.12);
-      color: #fff;
-      cursor: pointer;
-      box-shadow: 0 0 6px #01cdfe;
-    }
-    #soundBtn.off {
-      border-color: #555a78;
-      box-shadow: none;
-      background: rgba(255, 255, 255, 0.05);
-    }
-    p { color: #9aa3c7; text-align: center; line-height: 1.7; }
-    /* 휴대폰처럼 작은 화면 */
-    @media (max-width: 500px) {
-      p { font-size: 13px; }
-      #soundBtn { top: 2px; right: 4px; width: 28px; height: 22px; font-size: 12px; }
-    }
-    .green { color: #05ffa1; text-shadow: 0 0 6px #05ffa1; }
-    .yellow { color: #f9f871; text-shadow: 0 0 6px #f9f871; }
+    .g { background: #43a047; box-shadow: inset 2px 2px 0 #66bb6a, inset -2px -2px 0 #2e7d32; }
+    .s { background: #2f80c8; }
+    .l { background: #e9d8a6; color: #1565c0; }
+    .l.two { color: #2e7d32; }
+    .mines .info p { color: #c3cde6; }
+    .mines .record { color: #ffd166; }
+    .mines .play { background: #ffd166; color: #222; }
   </style>
 </head>
 <body>
-  <h1>NEON BREAKOUT</h1>
+  <h1>🎮 미니 게임 모음</h1>
+  <p class="sub">하고 싶은 게임을 골라 주세요</p>
 
-  <div id="wrap">
-    <canvas id="game" width="640" height="480"></canvas>
-    <button id="soundBtn" title="소리 켜기/끄기">🔊</button>
-    <div id="overlay">
-      <!-- 시작 / 게임 오버 화면 -->
-      <div id="mainView">
-        <div id="message"></div>
-        <div id="result"></div>
-        <form id="nameForm" class="hidden">
-          <input id="nameInput" maxlength="10" placeholder="아이디 입력" autocomplete="off">
-          <button type="submit" class="smallBtn">등록</button>
-        </form>
-        <div class="btnRow">
-          <button id="startBtn">게임 시작</button>
-          <button id="rankBtn" class="smallBtn">🏆 순위</button>
+  <div class="cards">
+    <!-- 벽돌깨기 -->
+    <a class="card breakout" href="breakout.html">
+      <div class="preview">
+        <div class="bricks">
+          <span style="border-color:#ff2a6d"></span><span style="border-color:#ff2a6d"></span><span style="border-color:#ff2a6d"></span><span style="border-color:#ff2a6d"></span><span style="border-color:#ff2a6d"></span><span style="border-color:#ff2a6d"></span>
+          <span style="border-color:#ff9e00"></span><span style="border-color:#ff9e00"></span><span></span><span style="border-color:#ff9e00"></span><span style="border-color:#ff9e00"></span><span style="border-color:#ff9e00"></span>
+          <span style="border-color:#f9f871"></span><span></span><span></span><span style="border-color:#f9f871"></span><span style="border-color:#f9f871"></span><span></span>
+        </div>
+        <div class="ball"></div>
+        <div class="paddle"></div>
+      </div>
+      <div class="info">
+        <h2>🧱 네온 벽돌깨기</h2>
+        <p>패들로 공을 튕겨 벽돌을 모두 깨요.<br>레벨이 오를수록 공이 빨라져요!</p>
+        <div class="record" id="breakoutRecord"></div>
+        <span class="play">▶ 플레이</span>
+      </div>
+    </a>
+
+    <!-- 지뢰찾기 -->
+    <a class="card mines" href="minesweeper.html">
+      <div class="preview">
+        <div class="tiles">
+          <span class="g"></span><span class="g"></span><span class="l">1</span><span class="s"></span><span class="s"></span><span class="l">1</span><span class="g"></span>
+          <span class="g"></span><span class="l two">2</span><span class="l">1</span><span class="s"></span><span class="s"></span><span class="l">1</span><span class="g"></span>
+          <span class="l">1</span><span class="l">1</span><span class="s"></span><span class="s"></span><span class="s"></span><span class="l">1</span><span class="l">1</span>
+          <span class="s"></span><span class="s"></span><span class="s"></span><span class="l">1</span><span class="l">1</span><span class="s"></span><span class="s"></span>
+          <span class="s"></span><span class="s"></span><span class="l">1</span><span class="g">🚩</span><span class="l two">2</span><span class="s"></span><span class="s"></span>
         </div>
       </div>
-      <!-- 순위표 화면 -->
-      <div id="rankPanel" class="hidden">
-        <h2>🏆 순위 TOP 10</h2>
-        <ol id="rankList"></ol>
-        <button id="closeRankBtn" class="smallBtn">닫기</button>
+      <div class="info">
+        <h2>🏝️ 섬 지뢰찾기</h2>
+        <p>풀을 걷어 내고 바다와 섬을 찾아요.<br>숫자를 보고 지뢰를 피하세요!</p>
+        <div class="record" id="minesRecord">💣 지뢰 150개 · 40×30칸</div>
+        <span class="play">▶ 플레이</span>
       </div>
-    </div>
+    </a>
   </div>
 
-  <p>
-    ← → 방향키, 마우스, 또는 손가락으로 끌어서 패들을 움직이세요<br>
-    아이템: <span class="green">● 초록 = 패들 길어짐</span> / <span class="yellow">● 노랑 = 공 추가</span>
-  </p>
-
   <script>
-    // ===== 기본 준비 =====
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");      // 그림을 그리는 붓
-    const overlay = document.getElementById("overlay");
-    const message = document.getElementById("message");
-    const startBtn = document.getElementById("startBtn");
-    const soundBtn = document.getElementById("soundBtn");
-    const mainView = document.getElementById("mainView");
-    const result = document.getElementById("result");
-    const nameForm = document.getElementById("nameForm");
-    const nameInput = document.getElementById("nameInput");
-    const rankBtn = document.getElementById("rankBtn");
-    const rankPanel = document.getElementById("rankPanel");
-    const rankList = document.getElementById("rankList");
-    const closeRankBtn = document.getElementById("closeRankBtn");
-
-    const W = canvas.width;
-    const H = canvas.height;
-
-    // ===== 네온 색깔 =====
-    const NEON = {
-      pink: "#ff2a6d",
-      orange: "#ff9e00",
-      yellow: "#f9f871",
-      green: "#05ffa1",
-      cyan: "#01cdfe",
-      white: "#e8fbff"
-    };
-
-    // ===== 패들 (아래쪽 막대) =====
-    const PADDLE_NORMAL = 100;   // 보통 길이
-    const PADDLE_LONG = 160;     // 아이템 먹었을 때 길이
-    const paddle = { w: PADDLE_NORMAL, h: 14, x: 0, y: H - 30, speed: 480 };
-    let longTimer = 0;           // 패들이 길어진 채로 남은 시간(초)
-
-    // ===== 공 (여러 개가 될 수 있어서 목록으로 관리) =====
-    const BALL_R = 8;
-    const START_SPEED = 330;     // 레벨 1 공 속도
-    const SPEED_UP = 30;         // 레벨이 오를 때마다 빨라지는 정도
-    let ballSpeed = START_SPEED;
-    let balls = [];
-    let serveTimer = 0;          // 공이 패들 위에서 기다리는 시간(초)
-    let banner = "";             // 공 출발 전에 크게 보여줄 글자
-
-    // ===== 벽돌 (5줄 × 8칸) =====
-    const ROWS = 5;
-    const COLS = 8;
-    const BRICK_H = 20;
-    const GAP = 8;          // 벽돌 사이 간격
-    const SIDE = 32;        // 왼쪽/오른쪽 여백
-    const TOP = 60;         // 위쪽 여백 (점수/하트 자리)
-    const BRICK_W = (W - SIDE * 2 - GAP * (COLS - 1)) / COLS;
-    const COLORS = [NEON.pink, NEON.orange, NEON.yellow, NEON.green, NEON.cyan]; // 줄마다 색
-    let bricks = [];
-
-    // ===== 아이템 =====
-    const ITEM_CHANCE = 0.1;     // 10% 확률
-    const ITEM_R = 10;
-    const ITEM_SPEED = 150;
-    const ITEM_TYPES = {
-      long:  { color: NEON.green,  mark: "↔" },  // 초록: 패들 길어짐
-      multi: { color: NEON.yellow, mark: "+" }   // 노랑: 공 추가
-    };
-    let items = [];
-
-    // ===== 꾸미기: 별, 벽돌 조각 =====
-    let stars = [];
-    for (let i = 0; i < 120; i++) {
-      stars.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: Math.random() * 1.4 + 0.3,       // 별 크기
-        speed: Math.random() * 12 + 4,      // 아래로 천천히 흘러가는 속도
-        twinkle: Math.random() * Math.PI * 2 // 반짝이는 타이밍
-      });
-    }
-    let pieces = [];   // 벽돌이 깨질 때 튀는 조각들
-
-    // ===== 게임 상태 =====
-    const MAX_LIVES = 3;
-    let lives = MAX_LIVES;
-    let score = 0;
-    let level = 1;
-    let playing = false;
-    let leftKey = false;
-    let rightKey = false;
-    let lastTime = 0;
-
-    // ===== 효과음 (음악 파일 없이 브라우저가 직접 소리를 만듦) =====
-    let audio = null;      // 소리를 만드는 기계 (처음 클릭할 때 켜짐)
-    let soundOn = true;
-    try { soundOn = localStorage.getItem("breakoutSound") !== "off"; } catch (e) {}
-
-    function startAudio() {
-      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === "suspended") audio.resume();
-    }
-
-    // 소리 하나 내기: 높이(freq), 길이(초), 소리 종류, 크기, 끝날 때 높이, 몇 초 뒤에 낼지
-    function beep(freq, duration, type = "square", volume = 0.12, endFreq = freq, delay = 0) {
-      if (!soundOn || !audio) return;
-      const t = audio.currentTime + delay;
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, t);
-      osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
-      gain.gain.setValueAtTime(volume, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);  // 점점 작아지게
-      osc.connect(gain);
-      gain.connect(audio.destination);
-      osc.start(t);
-      osc.stop(t + duration);
-    }
-
-    const sound = {
-      paddle: () => beep(420, 0.08, "square", 0.1),
-      wall:   () => beep(260, 0.05, "triangle", 0.12),
-      brick:  (row) => beep(900 - row * 80, 0.1, "square", 0.08, 1400 - row * 120),
-      item:   () => beep(500, 0.25, "sine", 0.2, 1500),
-      miss:   () => beep(320, 0.4, "sawtooth", 0.12, 80),
-      levelUp: () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, "square", 0.08, f, i * 0.1)),
-      gameOver: () => [392, 330, 262, 196].forEach((f, i) => beep(f, 0.35, "sawtooth", 0.1, f * 0.97, i * 0.28))
-    };
-
-    // 소리 버튼
-    function showSoundBtn() {
-      soundBtn.textContent = soundOn ? "🔊" : "🔇";
-      soundBtn.classList.toggle("off", !soundOn);
-    }
-    soundBtn.addEventListener("click", () => {
-      soundOn = !soundOn;
-      try { localStorage.setItem("breakoutSound", soundOn ? "on" : "off"); } catch (e) {}
-      startAudio();
-      showSoundBtn();
-      soundBtn.blur();   // 버튼에서 손 떼기 (키보드 조작 방해 안 하게)
-    });
-    showSoundBtn();
-
-    // 공 하나 만들기 (각도: 0이면 똑바로 위)
-    function makeBall(x, y, angle) {
-      return {
-        x: x,
-        y: y,
-        dx: Math.sin(angle) * ballSpeed,
-        dy: -Math.cos(angle) * ballSpeed
-      };
-    }
-
-    // 공을 패들 위에 올려놓고 잠깐 기다리기
-    function serveBall(waitTime, text) {
-      paddle.w = PADDLE_NORMAL;
-      paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-      longTimer = 0;
-      items = [];
-      balls = [makeBall(paddle.x + paddle.w / 2, paddle.y - BALL_R - 2, Math.random() * 0.6 - 0.3)];
-      serveTimer = waitTime;
-      banner = text;
-    }
-
-    // 벽돌 새로 쌓기
-    function buildBricks() {
-      bricks = [];
-      for (let row = 0; row < ROWS; row++) {
-        for (let col = 0; col < COLS; col++) {
-          bricks.push({
-            x: SIDE + col * (BRICK_W + GAP),
-            y: TOP + row * (BRICK_H + GAP),
-            row: row,
-            color: COLORS[row],
-            alive: true
-          });
-        }
+    // 벽돌깨기 최고 점수 보여주기 (벽돌깨기가 브라우저에 저장해 둔 기록)
+    try {
+      const best = JSON.parse(localStorage.getItem("breakoutBest"));
+      if (best && best.score > 0) {
+        const who = best.name ? " (" + best.name + ")" : "";
+        document.getElementById("breakoutRecord").textContent = "👑 최고 점수 " + best.score + "점" + who;
       }
-    }
+    } catch (e) {}
 
-    // 게임을 처음 상태로 되돌리기
-    function resetGame() {
-      buildBricks();
-      paddle.x = (W - PADDLE_NORMAL) / 2;
-      score = 0;
-      lives = MAX_LIVES;
-      level = 1;
-      ballSpeed = START_SPEED;
-      pieces = [];
-      serveBall(1.5, "레벨 1");
-    }
-
-    // 다음 레벨로
-    function nextLevel() {
-      level++;
-      ballSpeed = START_SPEED + (level - 1) * SPEED_UP;
-      buildBricks();
-      serveBall(2, "클리어! 레벨 " + level);
-      sound.levelUp();
-    }
-
-    // 벽돌 조각 흩어뜨리기
-    function breakPieces(b) {
-      for (let i = 0; i < 14; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const power = Math.random() * 160 + 60;
-        pieces.push({
-          x: b.x + Math.random() * BRICK_W,
-          y: b.y + Math.random() * BRICK_H,
-          dx: Math.cos(angle) * power,
-          dy: Math.sin(angle) * power - 60,
-          size: Math.random() * 4 + 2,
-          life: 1,                          // 1 → 0 이 되면 사라짐
-          color: b.color
-        });
+    // 지뢰찾기 최고 기록 (가장 빠른 클리어 시간)
+    try {
+      const best = JSON.parse(localStorage.getItem("minesBest"));
+      if (best && best.time > 0) {
+        const who = best.name ? " (" + best.name + ")" : "";
+        document.getElementById("minesRecord").textContent = "👑 최고 기록 " + best.time + "초" + who;
       }
-    }
-
-    // ===== 키보드 =====
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") leftKey = true;
-      if (e.key === "ArrowRight") rightKey = true;
-    });
-    document.addEventListener("keyup", (e) => {
-      if (e.key === "ArrowLeft") leftKey = false;
-      if (e.key === "ArrowRight") rightKey = false;
-    });
-
-    // ===== 마우스 / 손가락 =====
-    // 화면에서 가리킨 위치로 패들 옮기기 (화면 크기가 달라도 맞게 계산)
-    function movePaddleTo(clientX) {
-      const rect = canvas.getBoundingClientRect();
-      const x = (clientX - rect.left) * (W / rect.width);
-      paddle.x = x - paddle.w / 2;
-    }
-    canvas.addEventListener("mousemove", (e) => movePaddleTo(e.clientX));
-    // 휴대폰: 손가락으로 누르거나 끌면 패들이 따라옴
-    function onTouch(e) {
-      e.preventDefault();   // 화면이 스크롤되거나 확대되지 않게
-      movePaddleTo(e.touches[0].clientX);
-    }
-    canvas.addEventListener("touchstart", onTouch, { passive: false });
-    canvas.addEventListener("touchmove", onTouch, { passive: false });
-
-    // ===== 최고 점수 & 순위 (브라우저에 저장해서 다시 와도 남아 있음) =====
-    function load(key, fallback) {
-      try {
-        const value = JSON.parse(localStorage.getItem(key));
-        return value ?? fallback;
-      } catch (e) { return fallback; }
-    }
-    function save(key, value) {
-      try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
-    }
-    let best = load("breakoutBest", { score: 0, name: "" });   // 최고 점수
-    let ranking = load("breakoutRanking", []);                 // 순위 (최대 10개)
-    let myEntry = null;                                        // 방금 등록한 기록 (순위표에서 강조)
-    nameInput.value = load("breakoutName", "");                // 지난번에 쓴 아이디
-
-    // 줄 하나 만들기 (글자는 textContent로 넣어야 안전함)
-    function line(text, className) {
-      const div = document.createElement("div");
-      div.textContent = text;
-      if (className) div.className = className;
-      return div;
-    }
-
-    // 최고 점수 줄
-    function bestLine() {
-      if (best.score <= 0) return line("최고 점수: 아직 없음", "best");
-      const who = best.name ? "  (" + best.name + ")" : "";
-      return line("👑 최고 점수: " + best.score + "점" + who, "best");
-    }
-
-    // 시작 화면
-    function showStartScreen() {
-      message.textContent = "";
-      result.replaceChildren(bestLine());
-    }
-
-    // 순위표 보여주기
-    function showRanking() {
-      rankList.replaceChildren();
-      if (ranking.length === 0) {
-        rankList.append(line("아직 기록이 없어요"));
-      }
-      ranking.forEach((r, i) => {
-        const li = document.createElement("li");
-        if (r === myEntry) li.className = "me";
-        const cells = [
-          [(i + 1) + "위", "no"],
-          [r.name, "name"],
-          ["Lv." + r.level, "lv"],
-          [r.score + "점", "sc"]
-        ];
-        for (const [text, cls] of cells) {
-          const span = document.createElement("span");
-          span.textContent = text;
-          span.className = cls;
-          li.append(span);
-        }
-        rankList.append(li);
-      });
-      mainView.classList.add("hidden");
-      rankPanel.classList.remove("hidden");
-    }
-    rankBtn.addEventListener("click", showRanking);
-    closeRankBtn.addEventListener("click", () => {
-      rankPanel.classList.add("hidden");
-      mainView.classList.remove("hidden");
-    });
-
-    // 아이디 등록
-    nameForm.addEventListener("submit", (e) => {
-      e.preventDefault();   // 페이지가 새로고침되지 않게
-      const name = nameInput.value.trim() || "이름없음";
-      save("breakoutName", name);
-
-      myEntry = { name: name, score: score, level: level };
-      ranking.push(myEntry);
-      ranking.sort((a, b) => b.score - a.score);   // 점수 높은 순서로
-      ranking = ranking.slice(0, 10);              // 10등까지만
-      save("breakoutRanking", ranking);
-
-      // 최고 점수 주인이면 이름 붙이기
-      if (score >= best.score) {
-        best = { score: score, name: name };
-        save("breakoutBest", best);
-      }
-
-      nameForm.classList.add("hidden");
-      result.replaceChildren(line("이번 점수: " + score + "점 (레벨 " + level + ")"), bestLine());
-      showRanking();
-    });
-
-    // ===== 시작 버튼 =====
-    startBtn.addEventListener("click", () => {
-      startAudio();
-      resetGame();
-      overlay.classList.add("hidden");
-      startBtn.blur();
-      playing = true;
-    });
-
-    // 게임 끝
-    function endGame(text, color) {
-      playing = false;
-      message.textContent = text;
-      message.style.color = color;
-      message.style.textShadow = `0 0 8px ${color}, 0 0 24px ${color}, 0 0 48px ${color}`;
-
-      // 최고 점수 확인
-      const newBest = score > best.score;
-      if (newBest) {
-        best = { score: score, name: "" };
-        save("breakoutBest", best);
-      }
-      const lines = [line("이번 점수: " + score + "점 (레벨 " + level + ")"), bestLine()];
-      if (newBest) lines.push(line("🎉 새 최고 기록!", "newBest"));
-      result.replaceChildren(...lines);
-
-      // 점수가 있으면 아이디 입력칸 보여주기
-      myEntry = null;
-      nameForm.classList.toggle("hidden", score <= 0);
-
-      startBtn.textContent = "다시 시작";
-      rankPanel.classList.add("hidden");
-      mainView.classList.remove("hidden");
-      overlay.classList.remove("hidden");
-    }
-
-    // 아이템 효과 주기
-    function useItem(type) {
-      sound.item();
-      if (type === "long") {
-        // 가운데를 기준으로 길게 늘리기
-        const center = paddle.x + paddle.w / 2;
-        paddle.w = PADDLE_LONG;
-        paddle.x = center - paddle.w / 2;
-        longTimer = 10;   // 10초 동안
-      }
-      if (type === "multi" && balls.length < 10) {
-        // 패들 위에서 새 공 하나 출발
-        balls.push(makeBall(paddle.x + paddle.w / 2, paddle.y - BALL_R - 2, Math.random() * 1.2 - 0.6));
-      }
-    }
-
-    // ===== 게임 움직이기 =====
-    function update(dt) {
-      // 패들 이동 (방향키)
-      if (leftKey) paddle.x -= paddle.speed * dt;
-      if (rightKey) paddle.x += paddle.speed * dt;
-      // 패들이 화면 밖으로 못 나가게
-      paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-
-      // 길어진 패들 시간이 다 되면 원래대로
-      if (longTimer > 0) {
-        longTimer -= dt;
-        if (longTimer <= 0) {
-          const center = paddle.x + paddle.w / 2;
-          paddle.w = PADDLE_NORMAL;
-          paddle.x = Math.max(0, Math.min(W - paddle.w, center - paddle.w / 2));
-        }
-      }
-
-      // 출발 전: 공이 패들을 따라다님
-      if (serveTimer > 0) {
-        serveTimer -= dt;
-        balls[0].x = paddle.x + paddle.w / 2;
-        return;
-      }
-
-      // 공 하나하나 움직이기
-      for (const ball of balls) {
-        ball.x += ball.dx * dt;
-        ball.y += ball.dy * dt;
-
-        // 왼쪽/오른쪽 벽에 부딪히면 튕기기
-        if (ball.x - BALL_R < 0) { ball.x = BALL_R; ball.dx = Math.abs(ball.dx); sound.wall(); }
-        if (ball.x + BALL_R > W) { ball.x = W - BALL_R; ball.dx = -Math.abs(ball.dx); sound.wall(); }
-        // 위쪽 벽
-        if (ball.y - BALL_R < 0) { ball.y = BALL_R; ball.dy = Math.abs(ball.dy); sound.wall(); }
-
-        // 패들에 맞으면 튕기기 (맞은 위치에 따라 방향이 달라짐)
-        if (
-          ball.dy > 0 &&
-          ball.y + BALL_R >= paddle.y &&
-          ball.y + BALL_R <= paddle.y + paddle.h + 10 &&
-          ball.x >= paddle.x - BALL_R &&
-          ball.x <= paddle.x + paddle.w + BALL_R
-        ) {
-          // -1(왼쪽 끝) ~ 0(가운데) ~ 1(오른쪽 끝)
-          const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
-          const angle = Math.max(-1, Math.min(1, hit)) * (Math.PI / 3); // 최대 60도
-          ball.dx = Math.sin(angle) * ballSpeed;
-          ball.dy = -Math.cos(angle) * ballSpeed;
-          ball.y = paddle.y - BALL_R;
-          sound.paddle();
-        }
-
-        // 벽돌에 맞으면 깨기
-        for (const b of bricks) {
-          if (!b.alive) continue;
-          if (
-            ball.x + BALL_R > b.x && ball.x - BALL_R < b.x + BRICK_W &&
-            ball.y + BALL_R > b.y && ball.y - BALL_R < b.y + BRICK_H
-          ) {
-            b.alive = false;
-            score += 10;
-            breakPieces(b);
-            sound.brick(b.row);
-
-            // 10% 확률로 아이템 떨어뜨리기
-            if (Math.random() < ITEM_CHANCE) {
-              items.push({
-                x: b.x + BRICK_W / 2,
-                y: b.y + BRICK_H / 2,
-                type: Math.random() < 0.5 ? "long" : "multi"
-              });
-            }
-
-            // 옆면에 맞았는지, 위/아래에 맞았는지 보고 튕기는 방향 정하기
-            const overlapX = Math.min(ball.x + BALL_R - b.x, b.x + BRICK_W - (ball.x - BALL_R));
-            const overlapY = Math.min(ball.y + BALL_R - b.y, b.y + BRICK_H - (ball.y - BALL_R));
-            if (overlapX < overlapY) ball.dx = -ball.dx;
-            else ball.dy = -ball.dy;
-            break; // 한 번에 벽돌 하나만
-          }
-        }
-      }
-
-      // 화면 아래로 떨어진 공은 없애기
-      balls = balls.filter(ball => ball.y - BALL_R <= H);
-
-      // 아이템 떨어뜨리기 + 패들로 받기
-      for (const item of items) {
-        item.y += ITEM_SPEED * dt;
-        if (
-          item.y + ITEM_R >= paddle.y && item.y - ITEM_R <= paddle.y + paddle.h &&
-          item.x >= paddle.x && item.x <= paddle.x + paddle.w
-        ) {
-          useItem(item.type);
-          item.used = true;
-        }
-      }
-      items = items.filter(item => !item.used && item.y - ITEM_R <= H);
-
-      // 다 깨면 다음 레벨
-      if (bricks.every(b => !b.alive)) {
-        nextLevel();
-        return;
-      }
-
-      // 공이 하나도 안 남으면 목숨 하나 잃기
-      if (balls.length === 0) {
-        lives--;
-        if (lives <= 0) {
-          sound.gameOver();
-          endGame("게임 오버", NEON.pink);
-        } else {
-          sound.miss();
-          serveBall(1, "");
-        }
-      }
-    }
-
-    // ===== 꾸미기 움직이기 (게임 중이 아닐 때도 계속) =====
-    function updateEffects(dt) {
-      // 별이 천천히 아래로 흘러감
-      for (const s of stars) {
-        s.y += s.speed * dt;
-        s.twinkle += dt * 3;
-        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-      }
-      // 벽돌 조각: 날아가다가 아래로 떨어지며 사라짐
-      for (const p of pieces) {
-        p.x += p.dx * dt;
-        p.y += p.dy * dt;
-        p.dy += 400 * dt;     // 중력
-        p.life -= dt * 1.4;
-      }
-      pieces = pieces.filter(p => p.life > 0);
-    }
-
-    // 빛나게 그리기 설정 (blur가 클수록 빛이 넓게 퍼짐)
-    function glow(color, blur) {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = blur;
-    }
-    function noGlow() {
-      ctx.shadowBlur = 0;
-    }
-
-    // 하트 하나 그리기
-    function drawHeart(x, y, size, color) {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(x, y + size * 0.3);
-      ctx.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + size * 0.3);
-      ctx.bezierCurveTo(x - size / 2, y + size * 0.6, x, y + size * 0.8, x, y + size);
-      ctx.bezierCurveTo(x, y + size * 0.8, x + size / 2, y + size * 0.6, x + size / 2, y + size * 0.3);
-      ctx.bezierCurveTo(x + size / 2, y, x, y, x, y + size * 0.3);
-      ctx.fill();
-    }
-
-    // ===== 그리기 =====
-    function draw() {
-      // 우주 배경
-      const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, "#0b0624");
-      sky.addColorStop(1, "#02010a");
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, H);
-
-      // 별 (반짝반짝)
-      for (const s of stars) {
-        ctx.globalAlpha = 0.4 + Math.sin(s.twinkle) * 0.3 + 0.3;
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      // 위쪽 정보 칸
-      ctx.fillStyle = "rgba(1, 205, 254, 0.06)";
-      ctx.fillRect(0, 0, W, 42);
-      glow(NEON.cyan, 8);
-      ctx.fillStyle = NEON.cyan;
-      ctx.fillRect(0, 42, W, 1);
-
-      // 점수 + 레벨 (왼쪽 위)
-      ctx.fillStyle = NEON.white;
-      ctx.font = "bold 20px 'Malgun Gothic', sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText("점수 " + score, 14, 28);
-      ctx.fillStyle = NEON.yellow;
-      glow(NEON.yellow, 8);
-      ctx.fillText("레벨 " + level, 140, 28);
-
-      // 목숨 하트 (오른쪽 위, 소리 버튼 옆) - 남은 건 빨강, 잃은 건 회색
-      for (let i = 0; i < MAX_LIVES; i++) {
-        const alive = i < lives;
-        if (alive) glow(NEON.pink, 12); else noGlow();
-        drawHeart(W - 66 - i * 30, 11, 20, alive ? NEON.pink : "#2e2b45");
-      }
-
-      // 길어진 패들 남은 시간
-      if (longTimer > 0) {
-        glow(NEON.green, 8);
-        ctx.fillStyle = NEON.green;
-        ctx.font = "16px 'Malgun Gothic', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("패들 길어짐 " + Math.ceil(longTimer) + "초", W / 2 + 40, 27);
-      }
-
-      // 벽돌 (빛나는 테두리 + 안쪽은 살짝 투명)
-      for (const b of bricks) {
-        if (!b.alive) continue;
-        glow(b.color, 14);
-        ctx.fillStyle = b.color;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath();
-        ctx.roundRect(b.x, b.y, BRICK_W, BRICK_H, 4);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = b.color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      // 벽돌 조각
-      for (const p of pieces) {
-        glow(p.color, 8);
-        ctx.globalAlpha = Math.max(0, p.life);
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-      }
-      ctx.globalAlpha = 1;
-
-      // 아이템
-      for (const item of items) {
-        const t = ITEM_TYPES[item.type];
-        glow(t.color, 16);
-        ctx.fillStyle = t.color;
-        ctx.beginPath();
-        ctx.arc(item.x, item.y, ITEM_R, 0, Math.PI * 2);
-        ctx.fill();
-        noGlow();
-        ctx.fillStyle = "#07061a";
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(t.mark, item.x, item.y + 5);
-      }
-
-      // 패들 (길어졌을 땐 초록색)
-      const paddleColor = longTimer > 0 ? NEON.green : NEON.cyan;
-      glow(paddleColor, 20);
-      ctx.fillStyle = paddleColor;
-      ctx.beginPath();
-      ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, 7);
-      ctx.fill();
-
-      // 공
-      glow(NEON.cyan, 18);
-      ctx.fillStyle = "#ffffff";
-      for (const ball of balls) {
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 레벨 시작 글자 (공 출발 전에만 크게 보여줌)
-      if (playing && serveTimer > 0 && banner) {
-        glow(NEON.yellow, 24);
-        ctx.fillStyle = NEON.yellow;
-        ctx.font = "bold 48px 'Malgun Gothic', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(banner, W / 2, H / 2 + 70);
-      }
-
-      noGlow();
-    }
-
-    // ===== 계속 반복되는 흐름 (1초에 약 60번) =====
-    function loop(now) {
-      const dt = Math.min((now - lastTime) / 1000, 0.03); // 지난 화면에서 흐른 시간(초)
-      lastTime = now;
-      if (playing) update(dt);
-      updateEffects(dt);
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    // 시작 전 화면
-    showStartScreen();
-    resetGame();
-    lastTime = performance.now();
-    requestAnimationFrame(loop);
+    } catch (e) {}
   </script>
 </body>
 </html>

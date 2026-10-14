@@ -84,39 +84,119 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      background: rgba(0, 0, 0, 0.45);
+      background: rgba(0, 0, 0, 0.55);
       border-radius: 6px;
+      overflow-y: auto;
+      padding: 10px;
+      box-sizing: border-box;
     }
     .hidden { display: none !important; }
+    #mainView {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
     #message {
       font-size: clamp(36px, 10vw, 72px);
       font-weight: bold;
       text-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
     }
-    #detail { font-size: clamp(15px, 3.5vw, 22px); }
-    #overlayBtn {
-      font-size: clamp(16px, 4vw, 22px);
-      padding: 10px 28px;
+    #result {
+      text-align: center;
+      font-size: clamp(15px, 3.5vw, 21px);
+      line-height: 1.6;
+    }
+    #result .best { color: #ffd166; }
+    #result .newBest { color: #7ee081; font-weight: bold; }
+    #nameForm { display: flex; gap: 6px; }
+    #nameInput {
+      width: 150px;
+      font-size: 16px;   /* 16px보다 작으면 아이폰이 화면을 확대해 버림 */
+      padding: 7px 10px;
+      border: 2px solid #ffd166;
+      border-radius: 6px;
+      background: #fff8e1;
+      color: #222;
+      outline: none;
+    }
+    .btnRow { display: flex; gap: 10px; }
+    .bigBtn, .smallBtn {
       border: none;
       border-radius: 8px;
-      background: #ffd166;
-      color: #222;
       font-weight: bold;
       cursor: pointer;
+      touch-action: manipulation;
     }
+    .bigBtn {
+      font-size: clamp(16px, 4vw, 22px);
+      padding: 10px 26px;
+      background: #ffd166;
+      color: #222;
+    }
+    .smallBtn {
+      font-size: 16px;
+      padding: 8px 16px;
+      background: #34508f;
+      color: #fff;
+    }
+    .bigBtn:hover, .smallBtn:hover { filter: brightness(1.12); }
+    /* 순위표 */
+    #rankPanel {
+      width: min(380px, 92%);
+      max-height: 100%;
+      text-align: center;
+      background: #1f3060;
+      border: 2px solid #ffd166;
+      border-radius: 12px;
+      padding: 14px 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    #rankPanel h2 { margin: 0 0 10px; font-size: clamp(20px, 5vw, 26px); color: #ffd166; }
+    #rankList {
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0;
+      font-size: clamp(13px, 3.4vw, 17px);
+    }
+    #rankList li {
+      display: flex;
+      gap: 10px;
+      padding: 5px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    #rankList li.me { background: rgba(126, 224, 129, 0.2); color: #7ee081; font-weight: bold; }
+    #rankList .no { width: 36px; text-align: left; color: #ffd166; }
+    #rankList .name { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #rankList .tm { width: 72px; text-align: right; font-weight: bold; }
     p { color: #a9b8d8; text-align: center; line-height: 1.6; font-size: clamp(12px, 3vw, 15px); margin: 10px 0 0; }
     .phone { display: none; }
+    /* 처음 화면으로 돌아가는 버튼 (왼쪽 위) */
+    .home {
+      position: fixed;
+      top: 12px;
+      left: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #1f3060;
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+    }
+    .home:hover { background: #34508f; }
     /* 휴대폰처럼 작은 화면 */
     @media (max-width: 700px), (pointer: coarse) {
       body { justify-content: flex-start; padding-top: 8px; }
       h1 { margin-bottom: 6px; }
       .pc { display: none; }
       .phone { display: inline; }
+      .home { position: static; align-self: flex-start; margin: 0 0 6px 8px; }
     }
   </style>
 </head>
 <body>
+  <a class="home" href="index.html">← 처음으로</a>
   <h1>🏝️ 섬 지뢰찾기</h1>
 
   <div id="wrap">
@@ -126,6 +206,7 @@
         <button id="modeBtn" title="누르면 풀 없애기 / 깃발 꽂기가 바뀌어요">⛏️</button>
         <button id="zoomOutBtn" title="작게 보기">−</button>
         <button id="zoomInBtn" title="크게 보기">+</button>
+        <button id="barRankBtn" title="순위 보기">🏆</button>
         <button id="restartBtn">다시 시작</button>
       </div>
       <span id="timer">⏱️ 0</span>
@@ -135,9 +216,25 @@
         <canvas id="board"></canvas>
       </div>
       <div id="overlay" class="hidden">
-        <div id="message"></div>
-        <div id="detail"></div>
-        <button id="overlayBtn">다시 시작</button>
+        <!-- 게임 오버 / 클리어 화면 -->
+        <div id="mainView">
+          <div id="message"></div>
+          <div id="result"></div>
+          <form id="nameForm" class="hidden">
+            <input id="nameInput" maxlength="10" placeholder="닉네임 입력" autocomplete="off">
+            <button type="submit" class="smallBtn">등록</button>
+          </form>
+          <div class="btnRow">
+            <button id="overlayBtn" class="bigBtn">다시 시작</button>
+            <button id="rankBtn" class="smallBtn">🏆 순위</button>
+          </div>
+        </div>
+        <!-- 순위표 -->
+        <div id="rankPanel" class="hidden">
+          <h2>🏆 빠른 클리어 TOP 10</h2>
+          <ol id="rankList"></ol>
+          <button id="closeRankBtn" class="smallBtn">닫기</button>
+        </div>
       </div>
     </div>
   </div>
@@ -162,7 +259,12 @@
     const timerEl = document.getElementById("timer");
     const overlay = document.getElementById("overlay");
     const message = document.getElementById("message");
-    const detail = document.getElementById("detail");
+    const mainView = document.getElementById("mainView");
+    const result = document.getElementById("result");
+    const nameForm = document.getElementById("nameForm");
+    const nameInput = document.getElementById("nameInput");
+    const rankPanel = document.getElementById("rankPanel");
+    const rankList = document.getElementById("rankList");
     const wrap = document.getElementById("wrap");
     const viewport = document.getElementById("viewport");
     const modeBtn = document.getElementById("modeBtn");
@@ -294,6 +396,8 @@
       clearInterval(timerId);
       timerId = null;
       overlay.classList.add("hidden");
+      rankPanel.classList.add("hidden");
+      mainView.classList.remove("hidden");
       updateBar();
       draw();
     }
@@ -313,7 +417,8 @@
         c.n = neighbors(c).filter(nb => nb.mine).length;
       }
       minesPlaced = true;
-      // 시간 재기 시작
+      // 시간 재기 시작 (기록은 0.1초까지 정확하게)
+      startTime = performance.now();
       timerId = setInterval(() => { seconds++; updateBar(); }, 1000);
     }
 
@@ -377,24 +482,122 @@
     function lose() {
       gameOver = true;
       clearInterval(timerId);
-      showOverlay("게임 오버", "#ff6b6b", "💥 지뢰를 밟았어요!");
+      nameForm.classList.add("hidden");
+      showOverlay("게임 오버", "#ff6b6b", [line("💥 지뢰를 밟았어요!"), bestLine()]);
     }
 
     function win() {
       gameOver = true;
       clearInterval(timerId);
+      clearTime = Math.round((performance.now() - startTime) / 100) / 10;   // 0.1초 단위
       // 남은 지뢰에 깃발 자동으로 꽂기
       for (const c of cells) if (c.mine && !c.flag) { c.flag = true; flagCount++; }
       updateBar();
-      showOverlay("클리어!", "#ffd166", "⏱️ " + seconds + "초 만에 모든 지뢰를 찾았어요!");
+
+      // 최고 기록(가장 빠른 시간) 확인
+      const newBest = best.time === 0 || clearTime < best.time;
+      if (newBest) {
+        best = { time: clearTime, name: "" };
+        save("minesBest", best);
+      }
+      const lines = [line("⏱️ 이번 기록: " + clearTime + "초"), bestLine()];
+      if (newBest) lines.push(line("🎉 새 최고 기록!", "newBest"));
+
+      // 닉네임 입력칸 보여주기
+      myEntry = null;
+      nameForm.classList.remove("hidden");
+      showOverlay("클리어!", "#ffd166", lines);
     }
 
-    function showOverlay(text, color, sub) {
+    function showOverlay(text, color, lines) {
       message.textContent = text;
       message.style.color = color;
-      detail.textContent = sub;
+      result.replaceChildren(...lines);
+      rankPanel.classList.add("hidden");
+      mainView.classList.remove("hidden");
       overlay.classList.remove("hidden");
     }
+
+    // ===== 기록 & 순위 (브라우저에 저장해서 다시 와도 남아 있음) =====
+    function load(key, fallback) {
+      try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return value ?? fallback;
+      } catch (e) { return fallback; }
+    }
+    function save(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    }
+    let best = load("minesBest", { time: 0, name: "" });   // 가장 빠른 기록 (0 = 아직 없음)
+    let ranking = load("minesRanking", []);                // 순위 (빠른 순서, 최대 10개)
+    let myEntry = null;                                    // 방금 등록한 기록 (순위표에서 강조)
+    let startTime = 0;
+    let clearTime = 0;
+    // 지난번 닉네임 (없으면 벽돌깨기에서 쓴 닉네임)
+    nameInput.value = load("minesName", load("breakoutName", ""));
+
+    // 줄 하나 만들기 (글자는 textContent로 넣어야 안전함)
+    function line(text, className) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      if (className) div.className = className;
+      return div;
+    }
+
+    function bestLine() {
+      if (best.time === 0) return line("👑 최고 기록: 아직 없음", "best");
+      const who = best.name ? "  (" + best.name + ")" : "";
+      return line("👑 최고 기록: " + best.time + "초" + who, "best");
+    }
+
+    // 순위표 보여주기
+    function showRanking() {
+      rankList.replaceChildren();
+      if (ranking.length === 0) rankList.append(line("아직 기록이 없어요"));
+      ranking.forEach((r, i) => {
+        const li = document.createElement("li");
+        if (r === myEntry) li.className = "me";
+        for (const [text, cls] of [[(i + 1) + "위", "no"], [r.name, "name"], [r.time + "초", "tm"]]) {
+          const span = document.createElement("span");
+          span.textContent = text;
+          span.className = cls;
+          li.append(span);
+        }
+        rankList.append(li);
+      });
+      mainView.classList.add("hidden");
+      rankPanel.classList.remove("hidden");
+      overlay.classList.remove("hidden");
+    }
+
+    function closeRanking() {
+      rankPanel.classList.add("hidden");
+      if (gameOver) mainView.classList.remove("hidden");
+      else overlay.classList.add("hidden");   // 게임 중에 봤으면 다시 게임으로
+    }
+
+    // 닉네임 등록
+    nameForm.addEventListener("submit", (e) => {
+      e.preventDefault();   // 페이지가 새로고침되지 않게
+      const name = nameInput.value.trim() || "이름없음";
+      save("minesName", name);
+
+      myEntry = { name: name, time: clearTime };
+      ranking.push(myEntry);
+      ranking.sort((a, b) => a.time - b.time);   // 빠른 순서로
+      ranking = ranking.slice(0, 10);            // 10등까지만
+      save("minesRanking", ranking);
+
+      // 최고 기록 주인이면 이름 붙이기
+      if (clearTime <= best.time) {
+        best = { time: clearTime, name: name };
+        save("minesBest", best);
+      }
+
+      nameForm.classList.add("hidden");
+      result.replaceChildren(line("⏱️ 이번 기록: " + clearTime + "초"), bestLine());
+      showRanking();
+    });
 
     function updateBar() {
       mineCountEl.textContent = "💣 " + (MINES - flagCount);
@@ -569,6 +772,9 @@
 
     document.getElementById("restartBtn").addEventListener("click", newGame);
     document.getElementById("overlayBtn").addEventListener("click", newGame);
+    document.getElementById("rankBtn").addEventListener("click", showRanking);
+    document.getElementById("barRankBtn").addEventListener("click", showRanking);
+    document.getElementById("closeRankBtn").addEventListener("click", closeRanking);
 
     newGame();
     setCellSize(startSize());
